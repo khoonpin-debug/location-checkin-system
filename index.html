@@ -208,46 +208,82 @@
 
     <script>
         // ================= DYNAMIC CONFIGURATION =================
-        function getConfigFromURL() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            // Default configuration (fallback)
-            const defaultConfig = {
-                targetLocation: {
-                    latitude: 1.3521,
-                    longitude: 103.8198,  
-                    name: "Default Office",
-                    address: "123 Default Street"
-                },
-                allowedDistance: 0.05,
-                maxAttempts: 3
-            };
+function getConfigFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    console.log("URL Parameters found:", {
+        lat: urlParams.get('lat'),
+        lng: urlParams.get('lng'),
+        name: urlParams.get('name'),
+        distance: urlParams.get('distance')
+    });
 
-            // Get values from URL or use defaults
-            const config = {
-                targetLocation: {
-                    latitude: parseFloat(urlParams.get('lat')) || defaultConfig.targetLocation.latitude,
-                    longitude: parseFloat(urlParams.get('lng')) || defaultConfig.targetLocation.longitude,
-                    name: urlParams.get('name') || defaultConfig.targetLocation.name,
-                    address: urlParams.get('address') || defaultConfig.targetLocation.address
-                },
-                allowedDistance: parseFloat(urlParams.get('distance')) || defaultConfig.allowedDistance,
-                maxAttempts: 3,
-                googleForm: {
-                    baseUrl: "https://docs.google.com/forms/d/e/1Dw9hvs3XjQHPvsatmUDUbxOO9eWbHaZ2GggH7OWQZgE/viewform",
-                    fields: {
-                        location: "entry.28459228",
-                        latitude: "entry.1866379558", 
-                        longitude: "entry.435829576",
-                        distance: "entry.219126946"                        
-                    }
+    // Get values from URL - require essential parameters
+    const latitude = parseFloat(urlParams.get('lat'));
+    const longitude = parseFloat(urlParams.get('lng'));
+    const name = urlParams.get('name');
+    const distance = parseFloat(urlParams.get('distance'));
+
+    // If essential parameters are missing, use defaults but show error
+    if (!latitude || !longitude) {
+        console.error("Missing required coordinates in URL");
+        return {
+            targetLocation: {
+                latitude: 1.3521,
+                longitude: 103.8198,  
+                name: "Default Office",
+                address: "Default Address"
+            },
+            allowedDistance: 0.05,
+            maxAttempts: 3,
+            googleForm: {
+                baseUrl: "https://docs.google.com/forms/d/e/1Dw9hvs3XjQHPvsatmUDUbxOO9eWbHaZ2GggH7OWQZgE/viewform",
+                fields: {
+                    location: "entry.28459228",
+                    latitude: "entry.1866379558", 
+                    longitude: "entry.435829576",
+                    distance: "entry.219126946"
                 }
-            };
+            }
+        };
+    }
 
-            return config;
+    // Use URL parameters
+    return {
+        targetLocation: {
+            latitude: latitude,
+            longitude: longitude,
+            name: name || "Unnamed Location",
+            address: urlParams.get('address') || "No address provided"
+        },
+        allowedDistance: distance || 0.05,
+        maxAttempts: 3,
+        googleForm: {
+            baseUrl: "https://docs.google.com/forms/d/e/1Dw9hvs3XjQHPvsatmUDUbxOO9eWbHaZ2GggH7OWQZgE/viewform",
+            fields: {
+                location: "entry.28459228",
+                latitude: "entry.1866379558", 
+                longitude: "entry.435829576",
+                distance: "entry.219126946"
+            }
         }
+    };
+}
 
-        const CONFIG = getConfigFromURL();
+const CONFIG = getConfigFromURL();
+
+// Update page with location info
+document.getElementById('location-title').textContent = `${CONFIG.targetLocation.name} Check-in`;
+document.getElementById('location-subtitle').textContent = `You must be at ${CONFIG.targetLocation.name}`;
+
+// Show location badge if custom location
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('lat') || urlParams.get('name')) {
+    document.getElementById('location-badge').style.display = 'inline-block';
+    document.getElementById('badge-name').textContent = CONFIG.targetLocation.name;
+    document.getElementById('badge-distance').textContent = `${(CONFIG.allowedDistance * 1000)}m range`;
+}
+// ================= END CONFIGURATION =================
 
         // ================= DEBUG =================
         console.log("URL Parameters:", {
@@ -486,6 +522,7 @@
     </script>
 </body>
 </html>
+
 
 
 
