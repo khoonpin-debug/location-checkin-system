@@ -231,6 +231,7 @@
             progress: document.getElementById('progress')
         };
 
+        let attemptCount = 0;
         let userLocation = null;
 
         // Start verification when page loads
@@ -247,6 +248,12 @@
         }
 
         function verifyLocation() {
+            attemptCount++;
+            if (attemptCount > 3) {
+                showMaxAttemptsReached();
+                return;
+            }
+
             resetUI();
             elements.statusBox.className = 'status-box loading';
             elements.statusBox.innerHTML = `
@@ -391,12 +398,23 @@
 
             window.location.href = `${CONFIG.googleForm.baseUrl}?${params.toString()}`;
         }
+
+        function showMaxAttemptsReached() {
+            elements.statusBox.className = 'status-box error';
+            elements.statusBox.innerHTML = `
+                <div>🚫</div>
+                <h3>Maximum 3 Attempts Reached</h3>
+                <p>Please contact administrator for assistance.</p>
+                <p><small>Refresh the page to start over</small></p>
+    `        ;
+            elements.retryBtn.style.display = 'none';
+            elements.successBox.style.display = 'none';
+        }
+         
     </script>
 </body>
 
 </html>
-
-
 
 
 
