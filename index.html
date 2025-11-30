@@ -207,34 +207,48 @@
     </div>
 
     <script>
-        // ================= DYNAMIC CONFIGURATION =================
+      // ================= DYNAMIC CONFIGURATION =================
     function getConfigFromURL() {
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    console.log("URL Parameters found:", {
-        lat: urlParams.get('lat'),
-        lng: urlParams.get('lng'),
-        name: urlParams.get('name'),
-        distance: urlParams.get('distance')
-    });
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Get values from URL - require essential parameters
+        const latitude = parseFloat(urlParams.get('lat'));
+        const longitude = parseFloat(urlParams.get('lng'));
+        const name = urlParams.get('name');
+        const distance = parseFloat(urlParams.get('distance'));
 
-    // Get values from URL - require essential parameters
-    const latitude = parseFloat(urlParams.get('lat'));
-    const longitude = parseFloat(urlParams.get('lng'));
-    const name = urlParams.get('name');
-    const distance = parseFloat(urlParams.get('distance'));
+        // If essential parameters are missing, use defaults but show error
+        if (!latitude || !longitude) {
+            return {
+                targetLocation: {
+                    latitude: 1.3521,
+                    longitude: 103.8198,  
+                    name: "Default Office",
+                    address: "Default Address"
+                },
+                allowedDistance: 0.05,
+                maxAttempts: 3,
+                googleForm: {
+                    baseUrl: "https://docs.google.com/forms/d/e/1Dw9hvs3XjQHPvsatmUDUbxOO9eWbHaZ2GggH7OWQZgE/viewform",
+                    fields: {
+                        location: "entry.28459228",
+                        latitude: "entry.1866379558", 
+                        longitude: "entry.435829576",
+                        distance: "entry.219126946"
+                    }
+                }
+            };
+        }
 
-    // If essential parameters are missing, use defaults but show error
-    if (!latitude || !longitude) {
-        console.error("Missing required coordinates in URL");
+        // Use URL parameters
         return {
             targetLocation: {
-                latitude: 1.3521,
-                longitude: 103.8198,  
-                name: "Default Office",
-                address: "Default Address"
+                latitude: latitude,
+                longitude: longitude,
+                name: name || "Unnamed Location",
+                address: urlParams.get('address') || "No address provided"
             },
-            allowedDistance: 0.05,
+            allowedDistance: distance || 0.05,
             maxAttempts: 3,
             googleForm: {
                 baseUrl: "https://docs.google.com/forms/d/e/1Dw9hvs3XjQHPvsatmUDUbxOO9eWbHaZ2GggH7OWQZgE/viewform",
@@ -248,28 +262,6 @@
         };
     }
 
-    // Use URL parameters
-    return {
-        targetLocation: {
-            latitude: latitude,
-            longitude: longitude,
-            name: name || "Unnamed Location",
-            address: urlParams.get('address') || "No address provided"
-        },
-        allowedDistance: distance || 0.05,
-        maxAttempts: 3,
-        googleForm: {
-            baseUrl: "https://docs.google.com/forms/d/e/1Dw9hvs3XjQHPvsatmUDUbxOO9eWbHaZ2GggH7OWQZgE/viewform",
-            fields: {
-                location: "entry.28459228",
-                latitude: "entry.1866379558", 
-                longitude: "entry.435829576",
-                distance: "entry.219126946"
-            }
-        }
-    };
-}
-
     const CONFIG = getConfigFromURL();
 
     // Update page with location info
@@ -282,237 +274,238 @@
         document.getElementById('location-badge').style.display = 'inline-block';
         document.getElementById('badge-name').textContent = CONFIG.targetLocation.name;
         document.getElementById('badge-distance').textContent = `${(CONFIG.allowedDistance * 1000)}m range`;
-}
-    // ================= END CONFIGURATION =================
+    }
 
-                
-        // Update page with location info
-        document.getElementById('location-title').textContent = `${CONFIG.targetLocation.name} Check-in`;
-        document.getElementById('location-subtitle').textContent = `You must be at ${CONFIG.targetLocation.name}`;
-        
-        // Show location badge if custom location
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('lat') || urlParams.get('name')) {
-            document.getElementById('location-badge').style.display = 'inline-block';
-            document.getElementById('badge-name').textContent = CONFIG.targetLocation.name;
-            document.getElementById('badge-distance').textContent = `${(CONFIG.allowedDistance * 1000)}m range`;
+    // ================= MAIN APPLICATION CODE =================
+    const elements = {
+        statusBox: document.getElementById('status-box'),
+        retryBtn: document.getElementById('retry-btn'),
+        infoBox: document.getElementById('info-box'),
+        coordinates: document.getElementById('coordinates'),
+        distanceInfo: document.getElementById('distance-info'),
+        successBox: document.getElementById('success-box'),
+        continueBtn: document.getElementById('continue-btn'),
+        progress: document.getElementById('progress')
+    };
+
+    let userLocation = null;
+    let attemptCount = 0;
+    let locationTimeout;
+
+    // Start verification when page loads
+    window.addEventListener('load', () => {
+        startProgressAnimation();
+        setTimeout(verifyLocation, 1000);
+    });
+
+    elements.retryBtn.addEventListener('click', verifyLocation);
+    elements.continueBtn.addEventListener('click', redirectToGoogleForm);
+
+    function startProgressAnimation() {
+        elements.progress.style.width = '100%';
+    }
+
+    function verifyLocation() {
+        // Clear any existing timeout
+        if (locationTimeout) {
+            clearTimeout(locationTimeout);
         }
 
-        // ================= MAIN APPLICATION CODE =================
-        const elements = {
-            statusBox: document.getElementById('status-box'),
-            retryBtn: document.getElementById('retry-btn'),
-            infoBox: document.getElementById('info-box'),
-            coordinates: document.getElementById('coordinates'),
-            distanceInfo: document.getElementById('distance-info'),
-            successBox: document.getElementById('success-box'),
-            continueBtn: document.getElementById('continue-btn'),
-            progress: document.getElementById('progress')
+        attemptCount++;
+        
+        // Check if maximum attempts reached
+        if (attemptCount > CONFIG.maxAttempts) {
+            showMaxAttemptsReached();
+            return;
+        }
+
+        resetUI();
+        
+        elements.statusBox.className = 'status-box loading';
+        elements.statusBox.innerHTML = `
+            <div class="pulse">📍</div>
+            <h3>Requesting Location Access</h3>
+            <p>Please allow location permissions in your browser</p>
+            <p><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small></p>
+            <div class="progress-bar">
+                <div class="progress" style="width: 100%"></div>
+            </div>
+        `;
+
+        if (!navigator.geolocation) {
+            showError('Geolocation is not supported by your browser. Please use Chrome, Safari, or Firefox.');
+            return;
+        }
+
+        // Set timeout for GPS request (15 seconds)
+        locationTimeout = setTimeout(() => {
+            showError('Location request timed out. Please check your GPS signal and try again.');
+        }, 15000);
+
+        navigator.geolocation.getCurrentPosition(
+            handleLocationSuccess,
+            handleLocationError,
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,  // 10 second timeout
+                maximumAge: 0
+            }
+        );
+    }
+
+    function handleLocationSuccess(position) {
+        // Clear the timeout since we got a response
+        if (locationTimeout) {
+            clearTimeout(locationTimeout);
+        }
+
+        userLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
         };
 
-        let userLocation = null;
-        let attemptCount = 0;
+        const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            CONFIG.targetLocation.latitude,
+            CONFIG.targetLocation.longitude
+        );
 
-        // Start verification when page loads
-        window.addEventListener('load', () => {
-            startProgressAnimation();
-            setTimeout(verifyLocation, 1000);
-        });
+        const distanceMeters = distance * 1000;
 
-        elements.retryBtn.addEventListener('click', verifyLocation);
-        elements.continueBtn.addEventListener('click', redirectToGoogleForm);
+        // Update UI with location info
+        elements.coordinates.innerHTML = `
+            📍 Your Location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}<br>
+            🎯 GPS Accuracy: ${userLocation.accuracy} meters
+        `;
 
-        function startProgressAnimation() {
-            elements.progress.style.width = '100%';
-        }
+        elements.distanceInfo.innerHTML = `
+            🏢 Target: ${CONFIG.targetLocation.name}<br>
+            📏 Distance: ${distanceMeters.toFixed(0)} meters<br>
+            🔄 Attempt: ${attemptCount} of ${CONFIG.maxAttempts}
+        `;
 
-        function verifyLocation() {
-            attemptCount++;
-            
-            // Check if maximum attempts reached
-            if (attemptCount > CONFIG.maxAttempts) {
-                showMaxAttemptsReached();
-                return;
-            }
+        elements.infoBox.style.display = 'block';
 
-            resetUI();
-            updateAttemptMessage();
-            
-            elements.statusBox.className = 'status-box loading';
-            elements.statusBox.innerHTML = `
-                <div class="pulse">🔍</div>
-                <h3>Checking Your Location</h3>
-                <p>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</p>
-                <div class="progress-bar">
-                    <div class="progress" style="width: 100%"></div>
-                </div>
-            `;
-
-            if (!navigator.geolocation) {
-                showError('Geolocation is not supported by your browser. Please use Chrome, Safari, or Firefox.');
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                handleLocationSuccess,
-                handleLocationError,
-                {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 0
-                }
+        if (distance <= CONFIG.allowedDistance) {
+            showSuccess(distanceMeters);
+        } else {
+            showError(
+                `You are ${distanceMeters.toFixed(0)} meters away from ${CONFIG.targetLocation.name}. ` +
+                `Maximum allowed distance is ${(CONFIG.allowedDistance * 1000).toFixed(0)} meters.` +
+                `<br><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small>`
             );
         }
+    }
 
-        function handleLocationSuccess(position) {
-            userLocation = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy
-            };
+    function handleLocationError(error) {
+        // Clear the timeout since we got an error
+        if (locationTimeout) {
+            clearTimeout(locationTimeout);
+        }
 
-            const distance = calculateDistance(
+        let message = '';
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                message = '📍 Location access was denied. Please:<br>1. Allow location access in browser settings<br>2. Refresh the page and try again';
+                break;
+            case error.POSITION_UNAVAILABLE:
+                message = '📡 GPS signal not available. Please:<br>1. Move to an open area<br>2. Check your location services<br>3. Try again';
+                break;
+            case error.TIMEOUT:
+                message = '⏰ Location request timed out. Please:<br>1. Check your internet connection<br>2. Ensure GPS is enabled<br>3. Try again';
+                break;
+            default:
+                message = '❌ Unable to get your location. Please try again.';
+                break;
+        }
+        showError(message + `<br><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small>`);
+    }
+
+    function showSuccess(distanceMeters) {
+        elements.statusBox.className = 'status-box success';
+        elements.statusBox.innerHTML = `
+            <div>✅</div>
+            <h3>Location Verified!</h3>
+            <p>You are at ${CONFIG.targetLocation.name}</p>
+            <p><small>Distance: ${distanceMeters.toFixed(0)} meters</small></p>
+            <p><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small></p>
+        `;
+        elements.successBox.style.display = 'block';
+        elements.retryBtn.style.display = 'none';
+    }
+
+    function showError(message) {
+        elements.statusBox.className = 'status-box error';
+        elements.statusBox.innerHTML = `
+            <div>❌</div>
+            <h3>Location Check Failed</h3>
+            <p>${message}</p>
+        `;
+        
+        if (attemptCount < CONFIG.maxAttempts) {
+            elements.retryBtn.style.display = 'block';
+            elements.retryBtn.textContent = `🔄 Try Again (${attemptCount}/${CONFIG.maxAttempts})`;
+        } else {
+            elements.retryBtn.style.display = 'none';
+        }
+        
+        elements.successBox.style.display = 'none';
+    }
+
+    function showMaxAttemptsReached() {
+        elements.statusBox.className = 'status-box error';
+        elements.statusBox.innerHTML = `
+            <div>🚫</div>
+            <h3>Maximum Attempts Reached</h3>
+            <p>You have used all ${CONFIG.maxAttempts} attempts.</p>
+            <p><strong>Please contact administrator for assistance.</strong></p>
+            <p><small>Refresh the page to start over</small></p>
+        `;
+        elements.retryBtn.style.display = 'none';
+        elements.successBox.style.display = 'none';
+        elements.infoBox.style.display = 'block';
+    }
+
+    function resetUI() {
+        elements.retryBtn.style.display = 'none';
+        elements.successBox.style.display = 'none';
+        userLocation = null;
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    function redirectToGoogleForm() {
+        if (!userLocation) return;
+
+        const params = new URLSearchParams({
+            [CONFIG.googleForm.fields.location]: CONFIG.targetLocation.name,
+            [CONFIG.googleForm.fields.latitude]: userLocation.latitude.toFixed(6),
+            [CONFIG.googleForm.fields.longitude]: userLocation.longitude.toFixed(6),
+            [CONFIG.googleForm.fields.distance]: (calculateDistance(
                 userLocation.latitude,
                 userLocation.longitude,
                 CONFIG.targetLocation.latitude,
                 CONFIG.targetLocation.longitude
-            );
+            ) * 1000).toFixed(0)
+        });
 
-            const distanceMeters = distance * 1000;
-
-            // Update UI with location info
-            elements.coordinates.innerHTML = `
-                📍 Your Location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}<br>
-                🎯 GPS Accuracy: ${userLocation.accuracy} meters
-            `;
-
-            elements.distanceInfo.innerHTML = `
-                🏢 Target: ${CONFIG.targetLocation.name}<br>
-                📏 Distance: ${distanceMeters.toFixed(0)} meters<br>
-                🔄 Attempt: ${attemptCount} of ${CONFIG.maxAttempts}
-            `;
-
-            elements.infoBox.style.display = 'block';
-
-            if (distance <= CONFIG.allowedDistance) {
-                showSuccess(distanceMeters);
-            } else {
-                showError(
-                    `You are ${distanceMeters.toFixed(0)} meters away from ${CONFIG.targetLocation.name}. ` +
-                    `Maximum allowed distance is ${(CONFIG.allowedDistance * 1000).toFixed(0)} meters.` +
-                    `<br><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small>`
-                );
-            }
-        }
-
-        function handleLocationError(error) {
-            let message = '';
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    message = 'Location access was denied. Please allow location access in your browser settings and try again.';
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    message = 'Location information is unavailable. Please check your GPS signal and try again.';
-                    break;
-                case error.TIMEOUT:
-                    message = 'Location request timed out. Please check your internet connection and try again.';
-                    break;
-                default:
-                    message = 'An unknown error occurred while getting your location. Please try again.';
-                    break;
-            }
-            showError(message + `<br><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small>`);
-        }
-
-        function showSuccess(distanceMeters) {
-            elements.statusBox.className = 'status-box success';
-            elements.statusBox.innerHTML = `
-                <div>✅</div>
-                <h3>Location Verified!</h3>
-                <p>You are at ${CONFIG.targetLocation.name}</p>
-                <p><small>Distance: ${distanceMeters.toFixed(0)} meters</small></p>
-                <p><small>Attempt ${attemptCount} of ${CONFIG.maxAttempts}</small></p>
-            `;
-            elements.successBox.style.display = 'block';
-            elements.retryBtn.style.display = 'none';
-        }
-
-        function showError(message) {
-            elements.statusBox.className = 'status-box error';
-            elements.statusBox.innerHTML = `
-                <div>❌</div>
-                <h3>Access Denied</h3>
-                <p>${message}</p>
-            `;
-            
-            if (attemptCount < CONFIG.maxAttempts) {
-                elements.retryBtn.style.display = 'block';
-                elements.retryBtn.textContent = `🔄 Try Again (${attemptCount}/${CONFIG.maxAttempts})`;
-            } else {
-                elements.retryBtn.style.display = 'none';
-            }
-            
-            elements.successBox.style.display = 'none';
-        }
-
-        function showMaxAttemptsReached() {
-            elements.statusBox.className = 'status-box error';
-            elements.statusBox.innerHTML = `
-                <div>🚫</div>
-                <h3>Maximum Attempts Reached</h3>
-                <p>You have used all ${CONFIG.maxAttempts} attempts.</p>
-                <p><strong>Please contact administrator for assistance.</strong></p>
-                <p><small>Refresh the page to start over</small></p>
-            `;
-            elements.retryBtn.style.display = 'none';
-            elements.successBox.style.display = 'none';
-            elements.infoBox.style.display = 'block';
-        }
-
-        function updateAttemptMessage() {
-            if (attemptCount > 1) {
-                elements.infoBox.style.display = 'block';
-                elements.distanceInfo.innerHTML = `🔄 Attempt: ${attemptCount} of ${CONFIG.maxAttempts}`;
-            }
-        }
-
-        function resetUI() {
-            elements.retryBtn.style.display = 'none';
-            elements.successBox.style.display = 'none';
-            userLocation = null;
-        }
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
-        }
-
-        function redirectToGoogleForm() {
-            if (!userLocation) return;
-
-            const params = new URLSearchParams({
-                [CONFIG.googleForm.fields.location]: CONFIG.targetLocation.name,
-                [CONFIG.googleForm.fields.latitude]: userLocation.latitude.toFixed(6),
-                [CONFIG.googleForm.fields.longitude]: userLocation.longitude.toFixed(6),
-                [CONFIG.googleForm.fields.distance]: (calculateDistance(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    CONFIG.targetLocation.latitude,
-                    CONFIG.targetLocation.longitude
-                ) * 1000).toFixed(0),
-             });
-
-            window.location.href = `${CONFIG.googleForm.baseUrl}?${params.toString()}`;
-        }
+        window.location.href = `${CONFIG.googleForm.baseUrl}?${params.toString()}`;
+    }
     </script>
 </body>
 </html>
+
 
 
 
