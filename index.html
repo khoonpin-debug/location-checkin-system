@@ -249,6 +249,16 @@
 
         const CONFIG = getConfigFromURL();
 
+        // ================= DEBUG =================
+        console.log("URL Parameters:", {
+        lat: new URLSearchParams(window.location.search).get('lat'),
+        lng: new URLSearchParams(window.location.search).get('lng'),
+        name: new URLSearchParams(window.location.search).get('name'),
+        distance: new URLSearchParams(window.location.search).get('distance')
+        });
+        console.log("Final CONFIG:", CONFIG);
+        // ================= END DEBUG =================
+        
         // Update page with location info
         document.getElementById('location-title').textContent = `${CONFIG.targetLocation.name} Check-in`;
         document.getElementById('location-subtitle').textContent = `You must be at ${CONFIG.targetLocation.name}`;
@@ -476,6 +486,7 @@
     </script>
 </body>
 </html>
+
 
 
 
