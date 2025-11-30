@@ -208,7 +208,7 @@
 
     <script>
         // ================= DYNAMIC CONFIGURATION =================
-function getConfigFromURL() {
+    function getConfigFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     
     console.log("URL Parameters found:", {
@@ -270,31 +270,22 @@ function getConfigFromURL() {
     };
 }
 
-const CONFIG = getConfigFromURL();
+    const CONFIG = getConfigFromURL();
 
-// Update page with location info
-document.getElementById('location-title').textContent = `${CONFIG.targetLocation.name} Check-in`;
-document.getElementById('location-subtitle').textContent = `You must be at ${CONFIG.targetLocation.name}`;
+    // Update page with location info
+    document.getElementById('location-title').textContent = `${CONFIG.targetLocation.name} Check-in`;
+    document.getElementById('location-subtitle').textContent = `You must be at ${CONFIG.targetLocation.name}`;
 
-// Show location badge if custom location
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('lat') || urlParams.get('name')) {
-    document.getElementById('location-badge').style.display = 'inline-block';
-    document.getElementById('badge-name').textContent = CONFIG.targetLocation.name;
-    document.getElementById('badge-distance').textContent = `${(CONFIG.allowedDistance * 1000)}m range`;
+    // Show location badge if custom location
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('lat') || urlParams.get('name')) {
+        document.getElementById('location-badge').style.display = 'inline-block';
+        document.getElementById('badge-name').textContent = CONFIG.targetLocation.name;
+        document.getElementById('badge-distance').textContent = `${(CONFIG.allowedDistance * 1000)}m range`;
 }
-// ================= END CONFIGURATION =================
+    // ================= END CONFIGURATION =================
 
-        // ================= DEBUG =================
-        //console.log("URL Parameters:", {
-        //lat: new URLSearchParams(window.location.search).get('lat'),
-        //lng: new URLSearchParams(window.location.search).get('lng'),
-        //name: new URLSearchParams(window.location.search).get('name'),
-        //distance: new URLSearchParams(window.location.search).get('distance')
-        //});
-        //console.log("Final CONFIG:", CONFIG);
-        // ================= END DEBUG =================
-        
+                
         // Update page with location info
         document.getElementById('location-title').textContent = `${CONFIG.targetLocation.name} Check-in`;
         document.getElementById('location-subtitle').textContent = `You must be at ${CONFIG.targetLocation.name}`;
@@ -522,6 +513,7 @@ if (urlParams.get('lat') || urlParams.get('name')) {
     </script>
 </body>
 </html>
+
 
 
 
