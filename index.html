@@ -239,8 +239,7 @@
                         location: "entry.28459228",
                         latitude: "entry.1866379558", 
                         longitude: "entry.435829576",
-                        distance: "entry.219126946",
-                        accuracy: "entry.793131960"
+                        distance: "entry.219126946"                        
                     }
                 }
             };
@@ -470,14 +469,14 @@
                     CONFIG.targetLocation.latitude,
                     CONFIG.targetLocation.longitude
                 ) * 1000).toFixed(0),
-                [CONFIG.googleForm.fields.accuracy]: userLocation.accuracy.toFixed(0)
-            });
+             });
 
             window.location.href = `${CONFIG.googleForm.baseUrl}?${params.toString()}`;
         }
     </script>
 </body>
 </html>
+
 
 
 
